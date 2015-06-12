@@ -1,14 +1,200 @@
 {% load staticfiles %}
-<!DOCTYPE html>
-<html>
-<head>
-	<title>PORKCHOP SANDWICHES</title>
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>PORKCHOP SANDWICHES</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/phaser/2.3.0/phaser.min.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
 </head>
 <body>
+
+<script type="text/javascript">
+
+var game = new Phaser.Game(800, 600, Phaser.AUTO, 'shooter');
+// First I want to set up the initial bullet, and give it specific properties
+// NOTE - we're setting up separate bullet classes and pre-making our bullets in the background,
+// as opposed to creating a new sprite every time the bullet is fired in-game, which is costly.
+
+var Bullet = function (game, key){
+
+    Phaser.Sprite.call(this, game, 0, 0, key);
+
+    this.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
+
+    this.anchor.set(0.5);
+
+    this.checkWorldBounds = true;
+    this.outOfBoundsKill = true;
+    this.exists = false;
+
+    this.tracking = false;
+    this.scaleSpeed = 0;
+
+};
+
+
+Bullet.prototype = Object.create(Phaser.Sprite.prototype);
+Bullet.prototype.constructor = Bullet;
+
+Bullet.prototype.fire = function (x, y, angle, speed, gx, gy) {
+
+    gx = gx || 0;
+    gy = gy || 0;
+
+    this.reset(x, y);
+    this.scale.set(1);
+
+    this.game.physics.arcade.velocityFromAngle(angle, speed, this.body.velocity);
+
+    this.angle = angle;
+
+    this.body.gravity.set(gx, gy);
+
+};
+
+Bullet.prototype.update = function () {
+
+    if (this.tracking)
+    {
+        this.rotation = Math.atan2(this.body.velocity.y, this.body.velocity.x);
+    }
+
+    if (this.scaleSpeed > 0)
+    {
+        this.scale.x += this.scaleSpeed;
+        this.scale.y += this.scaleSpeed;
+    }
+
+};
+
+var Weapon = {};
+
+Weapon.SingleBullet = function (game) {
+
+    Phaser.Group.call(this, game, game.world, 'Single Bullet', false, true, Phaser.Physics.ARCADE);
+
+    this.nextFire = 0;
+    this.bulletSpeed = 600;
+    this.fireRate = 100;
+
+    for (var i = 0; i < 64; i++)
+    {
+        this.add(new Bullet(game, 'laser'), true);
+    }
+
+    return this;
+
+};
+
+
+Weapon.SingleBullet.prototype = Object.create(Phaser.Group.prototype);
+Weapon.SingleBullet.prototype.constructor = Weapon.SingleBullet;
+
+Weapon.SingleBullet.prototype.fire = function (source) {
+
+    if (this.game.time.time < this.nextFire) { return; }
+
+    var x = source.x + 10;
+    var y = source.y + 10;
+
+    this.getFirstExists(false).fire(x, y, 0, this.bulletSpeed, 0, 0);
+
+    this.nextFire = this.game.time.time + this.fireRate;
+
+};
+
+//This is our game instance, which includes our player and all the basic gaming stuff
+var Kablooie = function (game) {
+
+    this.plane = null;
+    this.cursors = null;
+    this.speed = 350;
+    this.weapons = []
+
+};
+
+Kablooie.prototype = {
+
+	init: function(){
+        this.game.renderer.renderSession.roundPixels = true;
+		this.game.world.setBounds(0, 0, 800, 600);
+		this.physics.startSystem(Phaser.Physics.ARCADE);
+
+	},
+
+	preload: function(){
+
+        //here is where we load up our various backgrounds and sprites
+        this.load.image('plane', '{% static "kablooie/assets/serenity-overhead.png" %}');
+        this.load.image('laser', '{% static "kablooie/assets/laser.png" %}');
+
+	},
+
+    create: function(){
+
+        // here are the bullets!
+        this.weapons.push(new Weapon.SingleBullet(this.game));
+
+        //adding out plane.  Yay serenity!
+        this.plane = this.add.sprite(20, 200, 'plane');
+        this.physics.arcade.enable(this.plane);
+        this.plane.body.collideWorldBounds = true;
+
+
+        //cursor keys!
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.input.keyboard.addKeyCapture([ Phaser.Keyboard.SPACEBAR ]);
+
+
+    },
+
+    update: function(){
+
+        //here is where we set up listeners for the controls, 
+        //and making it so the plane doesn't move about
+         this.plane.body.velocity.x = 0;
+         this.plane.body.velocity.y = 0;
+
+        if (this.cursors.left.isDown)
+        {
+            //  Move to the left
+            this.plane.body.velocity.x = -this.speed;
+
+        }
+        else if (this.cursors.right.isDown)
+        {
+            //  Move to the right
+            this.plane.body.velocity.x = this.speed;
+
+        }
+        else if (this.cursors.up.isDown)
+        {
+            this.plane.body.velocity.y = -this.speed;
+        }
+        else if (this.cursors.down.isDown)
+        {
+            this.plane.body.velocity.y = this.speed;
+        }
+        if (this.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR))
+        {
+            this.weapon[Weapon.SingleBullet].visible = true;
+            this.weapon[Weapon.SingleBullet].fire(this.plane);
+        }
+
+
+    },
+
+
+};
+// End Game Instance
+
+game.state.add('Game', Kablooie, true);
+</script>
 <h1>PORKCHOP SANDWICHES</h1>
-
-<script href="https://cdnjs.cloudflare.com/ajax/libs/phaser/2.3.0/phaser.min.js"> </script>
-
-<script type="text/javascript"></script>
 </body>
 </html>
